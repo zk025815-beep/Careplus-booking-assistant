@@ -19,7 +19,53 @@ from config import (
 )
 
 
+def init_google_services():import os
+import json
+import streamlit as st
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/gmail.send"
+]
+
 def init_google_services():
+    # 1. Auto-create token.json from Streamlit Secrets if running on Cloud
+    if not os.path.exists("token.json"):
+        token_data = os.getenv("GOOGLE_TOKEN_JSON")
+        if not token_data:
+            try:
+                token_data = st.secrets.get("GOOGLE_TOKEN_JSON")
+            except Exception:
+                token_data = None
+                
+        if token_data:
+            with open("token.json", "w") as f:
+                f.write(token_data.strip())
+
+    # 2. Load credentials from token.json
+    if not os.path.exists("token.json"):
+        raise FileNotFoundError(
+            "token.json not found. Add GOOGLE_TOKEN_JSON to Streamlit Cloud Secrets."
+        )
+
+    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    # Refresh token if expired
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open("token.json", "w") as token_file:
+            token_file.write(creds.to_json())
+
+    calendar_service = build("calendar", "v3", credentials=creds)
+    sheets_service = build("sheets", "v4", credentials=creds)
+    gmail_service = build("gmail", "v1", credentials=creds)
+
+    return calendar_service, sheets_service, gmail_service
+
     """Authenticates via OAuth 2.0 locally and returns Calendar, Sheets, and Gmail clients."""
     creds = None
     if os.path.exists(TOKEN_FILE):
