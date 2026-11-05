@@ -34,3 +34,5 @@ def search_clinic_knowledge_base(query: str) -> str:
     results = collection.query(query_texts=[query], n_results=3)
     retrieved_chunks = results["documents"][0]
     return "\n\n".join(retrieved_chunks)
+
+    # 1
